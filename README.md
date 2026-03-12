@@ -3,9 +3,9 @@
 A secure, internal web application to manage an HAProxy instance.
 Built with Python Flask, Jinja2, and Bootstrap 5.
 
-![HAProxy Admin Screen 1](haproxyadmin1.png)
-![HAProxy Admin Screen 2](haproxyadmin2.png)
-![HAProxy Admin Screen 3](haproxyadmin3.png)
+![HAProxy Admin Screen 1](images/haproxyadmin1.png)
+![HAProxy Admin Screen 2](images/haproxyadmin2.png)
+![HAProxy Admin Screen 3](images/haproxyadmin3.png)
 
 **Supported Versions:** Fully tested and supported with **HAProxy 2.8**.
 
