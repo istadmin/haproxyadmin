@@ -1,0 +1,22 @@
+[Unit]
+Description=HAProxy Admin Gunicorn Daemon
+After=network.target
+
+[Service]
+# User that runs the app. This user needs sudo permissions to reload haproxy
+User=haproxy-root-admin
+Group=www-data
+
+WorkingDirectory=/opt/haproxy-admin
+Environment="PATH=/opt/haproxy-admin/venv/bin"
+Environment="FLASK_SECRET_KEY=generate-a-long-random-string-here"
+
+# The command to execute gunicorn
+ExecStart=/opt/haproxy-admin/venv/bin/gunicorn \
+          --workers 3 \
+          --bind unix:app.sock \
+          -m 007 \
+          wsgi:app
+
+[Install]
+WantedBy=multi-user.target

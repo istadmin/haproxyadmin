@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Configuration History</h2>
+    <a href="{{ url_for('editor') }}" class="btn btn-outline-primary">Back to Editor</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Timestamp</th>
+                        <th scope="col">User</th>
+                        <th scope="col">Change Summary</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for backup in backups %}
+                    <tr>
+                        <td><code>{{ backup.timestamp }}</code></td>
+                        <td>{{ backup.username }}</td>
+                        <td>{{ backup.comment }}</td>
+                        <td>
+                            <form action="{{ url_for('diff') }}" method="GET" class="d-inline">
+                                <input type="hidden" name="backup_path" value="{{ backup.backup_path }}">
+                                <button type="submit" class="btn btn-sm btn-info">View Diffs</button>
+                            </form>
+                            
+                            <form action="{{ url_for('rollback') }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to rollback to this version? This will reload HAProxy immediately.')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="backup_path" value="{{ backup.backup_path }}">
+                                <button type="submit" class="btn btn-sm btn-warning">Rollback</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            No backup history available yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

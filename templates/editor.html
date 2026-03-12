@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Configuration Editor</h2>
+    <span class="badge bg-info">Editing: {{ config_path }}</span>
+</div>
+
+{% if validation_output is defined %}
+    <div class="card mb-4 border-{{ 'success' if validation_success else 'danger' }}">
+        <div class="card-header text-white bg-{{ 'success' if validation_success else 'danger' }}">
+            Validation Result: {{ 'Passed' if validation_success else 'Failed' }}
+        </div>
+        <div class="card-body px-0 py-0">
+            <div class="monospace-log m-0 border-0" style="max-height: 200px; overflow-y: auto; background-color: #fcfcfc;">{{ validation_output }}</div>
+        </div>
+    </div>
+{% endif %}
+
+<div class="card shadow-sm mb-5">
+    <div class="card-body">
+        <form id="configForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <div class="mb-3 border rounded">
+                <!-- Custom Ace Toolbar -->
+                <div class="bg-light border-bottom p-2 d-flex gap-2 align-items-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editor.undo()" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editor.redo()" title="Redo"><i class="bi bi-arrow-clockwise"></i></button>
+                    <div class="vr mx-1"></div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editor.execCommand('find')" title="Search (Ctrl+F)"><i class="bi bi-search"></i> Find</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editor.execCommand('replace')" title="Replace (Ctrl+H)"><i class="bi bi-arrow-left-right"></i> Replace</button>
+                    <div class="vr mx-1"></div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editor.execCommand('showSettingsMenu')" title="Settings"><i class="bi bi-gear"></i></button>
+                    <div class="ms-auto text-muted small" id="aceStatus" style="font-family: monospace;">Line: 1, Col: 1</div>
+                </div>
+            
+                <!-- Hidden textarea to actually hold the form data for POST -->
+                <textarea name="config_content" id="config_content" style="display: none;" required>{{ content }}</textarea>
+                <!-- Ace Editor Container -->
+                <div id="aceEditor" style="height: 600px; width: 100%; font-size: 14px;"></div>
+            </div>
+            
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <input type="text" name="comment" class="form-control" placeholder="Short change summary / commit message (required for Apply)" required>
+                </div>
+                <div class="col-md-5 text-end">
+                    <!-- Validate Button Posts to /validate -->
+                    <button type="submit" class="btn btn-outline-info me-2" formaction="{{ url_for('validate_config') }}" formnovalidate>
+                        Dry Run / Validate Only
+                    </button>
+                    <!-- Apply Button Posts to /apply -->
+                    <button type="submit" class="btn btn-danger" formaction="{{ url_for('apply_config') }}" onclick="return confirm('WARNING: This will reload HAProxy in production. Proceed?')">
+                        Backup & Apply Config
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ace Editor Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+<!-- Ace Extnsions required for Search and Settings -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ext-searchbox.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ext-settings_menu.min.js"></script>
+<script>
+    // Initialize Ace Editor
+    var editor = ace.edit("aceEditor");
+    
+    // Configure Theme and Language Mode
+    // HAProxy syntax isn't officially supported by Ace, but 'ini' or 'sh' is a very close visual fallback
+    editor.setTheme("ace/theme/textmate"); // Clean light theme
+    editor.session.setMode("ace/mode/ini");
+    
+    // Editor Features
+    editor.setOptions({
+        showLineNumbers: true,
+        showGutter: true,
+        showPrintMargin: false,
+        highlightActiveLine: true,
+        enableBasicAutocompletion: true,
+        enableSnippets: true,
+        enableLiveAutocompletion: false,
+        tabSize: 4,
+        useSoftTabs: true
+    });
+
+    // Load initial content from the hidden textarea
+    var textarea = document.getElementById("config_content");
+    editor.getSession().setValue(textarea.value);
+
+    // Sync Ace Editor content back to the hidden textarea whenever the form is submitted
+    document.getElementById('configForm').addEventListener('submit', function() {
+        textarea.value = editor.getSession().getValue();
+    });
+
+    // Update Status Bar
+    editor.getSession().selection.on('changeCursor', function(e) {
+        var pos = editor.selection.getCursor();
+        document.getElementById('aceStatus').innerText = 'Line: ' + (pos.row + 1) + ', Col: ' + (pos.column + 1);
+    });
+</script>
+{% endblock %}

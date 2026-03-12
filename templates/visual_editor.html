@@ -1,0 +1,587 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h2 class="h3"><i class="bi bi-grid text-primary me-2"></i>Full Visual Editor</h2>
+        <p class="text-muted mb-0">Comprehensively manage all global, frontend, and backend configurations.</p>
+    </div>
+    <div class="col-auto">
+        <button id="btnPreview" class="btn btn-warning me-2"><i class="bi bi-eye"></i> Preview & Apply</button>
+    </div>
+</div>
+
+<!-- Configuration Root Data Store -->
+<script id="configData" type="application/json">
+    {{ config_json | tojson | safe }}
+</script>
+
+<div class="row">
+    <!-- LEFT COLUMN: Global & Defaults -->
+    <div class="col-md-4">
+        
+        <!-- Global Section -->
+        <div class="card shadow-sm mb-4 border-secondary">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fs-6"><i class="bi bi-globe"></i> Global Settings</h5>
+                <button class="btn btn-sm btn-light py-0" onclick="editRawSection('global')"><i class="bi bi-pencil"></i></button>
+            </div>
+            <div class="card-body py-2 px-3 bg-light" id="display-global">
+                <!-- JS populated -->
+            </div>
+        </div>
+
+        <!-- Defaults Section -->
+        <div class="card shadow-sm mb-4 border-secondary">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fs-6"><i class="bi bi-gear"></i> Defaults</h5>
+                <button class="btn btn-sm btn-light py-0" onclick="editRawSection('defaults')"><i class="bi bi-pencil"></i></button>
+            </div>
+            <div class="card-body py-2 px-3 bg-light" id="display-defaults">
+                <!-- JS populated -->
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- RIGHT COLUMN: Frontends & Backends -->
+    <div class="col-md-8">
+        
+        <!-- Frontends Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h4 class="h5 text-primary mb-0"><i class="bi bi-hdd-network"></i> Frontends (Listeners)</h4>
+            <button class="btn btn-sm btn-outline-primary" onclick="addFrontend()"><i class="bi bi-plus-lg"></i> Add Frontend</button>
+        </div>
+        <div id="frontends-container" class="mb-5">
+            <!-- JS populated cards -->
+        </div>
+
+        <!-- Backends Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h4 class="h5 text-success mb-0"><i class="bi bi-server"></i> Backends (Targets)</h4>
+            <button class="btn btn-sm btn-outline-success" onclick="addBackend()"><i class="bi bi-plus-lg"></i> Add Backend</button>
+        </div>
+        <div id="backends-container">
+            <!-- JS populated cards -->
+        </div>
+        
+    </div>
+</div>
+
+<!-- MODAL: Raw Section Editor (Global/Defaults) -->
+<div class="modal fade" id="rawModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rawModalTitle">Edit Section</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rawModalTarget">
+                <label class="form-label text-muted small">One directive per line</label>
+                <textarea class="form-control font-monospace" id="rawModalContent" rows="8"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveRawSection()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Frontend Editor -->
+<div class="modal fade" id="feModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-primary border-bottom border-3">
+                <h5 class="modal-title text-primary"><i class="bi bi-hdd-network"></i> <span id="feModalTitle">Edit Frontend</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <input type="hidden" id="feOriginalName">
+                
+                <div class="row border-bottom pb-3 mb-3">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">Frontend Name</label>
+                        <input type="text" class="form-control" id="feName">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">Bind (IP:Port)</label>
+                        <input type="text" class="form-control font-monospace" id="feBind" placeholder="*:80">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">Mode</label>
+                        <select class="form-select" id="feMode">
+                            <option value="http">http</option>
+                            <option value="tcp">tcp</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">SSL Certificate Path (Optional)</label>
+                        <input type="text" class="form-control font-monospace" id="feSsl" placeholder="/etc/ssl/certs/bundle.pem">
+                    </div>
+                </div>
+
+                <div class="mb-4 border rounded p-3 bg-white border-primary border-opacity-25">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold text-success mb-0"><i class="bi bi-filter"></i> Route Definition (ACLs)</label>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="addAclRow()"><i class="bi bi-plus-lg"></i> Add ACL</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0">
+                            <thead class="table-light"><tr><th width="30%">ACL Name</th><th>Condition/Value</th><th width="5%"></th></tr></thead>
+                            <tbody id="feAclsTable">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mb-4 border rounded p-3 bg-white border-primary border-opacity-25">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold py-0 text-primary mb-0"><i class="bi bi-signpost-split"></i> Target Routing (Use Backend Rules)</label>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addUseBackendRow()"><i class="bi bi-plus-lg"></i> Add Route Target</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0">
+                            <thead class="table-light"><tr><th width="40%">Target Backend</th><th>If Condition</th><th width="5%"></th></tr></thead>
+                            <tbody id="feUseBackendsTable">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Default Backend</label>
+                    <input type="text" class="form-control" id="feDefaultBe">
+                </div>
+
+                <div class="mb-0">
+                    <label class="form-label fw-bold text-danger">Advanced Custom Directives</label>
+                    <div class="text-muted small mb-1">Lines that don't fit into the fields above are preserved here.</div>
+                    <textarea class="form-control font-monospace bg-dark text-light" id="feRaw" rows="3"></textarea>
+                </div>
+                
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveFrontend()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Backend Editor -->
+<div class="modal fade" id="beModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-success border-bottom border-3">
+                <h5 class="modal-title text-success"><i class="bi bi-server"></i> <span id="beModalTitle">Edit Backend</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <input type="hidden" id="beOriginalName">
+                
+                <div class="row border-bottom pb-3 mb-3">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">Backend Name</label>
+                        <input type="text" class="form-control" id="beName">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">Mode</label>
+                        <select class="form-select" id="beMode">
+                            <option value="http">http</option>
+                            <option value="tcp">tcp</option>
+                            <option value="">(Inherit)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">Balance Alg</label>
+                        <select class="form-select" id="beBalance">
+                            <option value="roundrobin">roundrobin</option>
+                            <option value="leastconn">leastconn</option>
+                            <option value="source">source</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-primary">Servers</label>
+                    <div class="text-muted small mb-1">One server per line. E.g. <code>server web1 10.0.0.1:80 check ssl verify none</code></div>
+                    <textarea class="form-control font-monospace mb-3" id="beServers" rows="5"></textarea>
+                </div>
+
+                <div class="mb-0">
+                    <label class="form-label fw-bold text-danger">Advanced Custom Directives</label>
+                    <div class="text-muted small mb-1">Health checks, stick tables, cookies etc.</div>
+                    <textarea class="form-control font-monospace bg-dark text-light" id="beRaw" rows="4"></textarea>
+                </div>
+                
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveBackend()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Preview Form for Backend Parsing -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <form class="modal-content" method="POST" action="{{ url_for('editor') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="commit_msg" value="Applied via Visual Editor"/>
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark"><i class="bi bi-file-earmark-code"></i> Generated Configuration Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="alert alert-info m-3 p-2 small">
+                    This is the raw HAProxy configuration text generated from your visual edits. Review before confirming. 
+                    Submitting this form simulates a standard Editor save.
+                </div>
+                <textarea class="form-control font-monospace bg-dark text-light border-0 rounded-0" id="previewTextarea" name="config_content" rows="20"></textarea>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Go Back</button>
+                <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-check-circle"></i> Validate & Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let appState = JSON.parse(document.getElementById('configData').textContent || '{}');
+    let rawModal, feModal, beModal, previewModal;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        rawModal = new bootstrap.Modal(document.getElementById('rawModal'));
+        feModal = new bootstrap.Modal(document.getElementById('feModal'));
+        beModal = new bootstrap.Modal(document.getElementById('beModal'));
+        previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+        
+        renderAll();
+
+        document.getElementById('btnPreview').addEventListener('click', async () => {
+            // POST json state to get string text
+            const btn = document.getElementById('btnPreview');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating...';
+
+            try {
+                // Get CSRF Token from the hidden input in the preview modal form
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                let headers = { 
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                };
+                
+                const response = await fetch('/api/visual-editor/generate', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(appState)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('previewTextarea').value = data.config;
+                    previewModal.show();
+                } else {
+                    alert("Generation failed on server.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error communicating with server.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-eye"></i> Preview & Apply';
+            }
+        });
+    });
+
+    function cleanMarkup(str) {
+        return str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function renderAll() {
+        // Global
+        let gloHtml = (appState.global || []).map(l => `<div class="font-monospace small text-truncate">${cleanMarkup(l)}</div>`).join('');
+        document.getElementById('display-global').innerHTML = gloHtml || '<em class="text-muted small">Empty</em>';
+
+        // Defaults
+        let defHtml = (appState.defaults || []).map(l => `<div class="font-monospace small text-truncate">${cleanMarkup(l)}</div>`).join('');
+        document.getElementById('display-defaults').innerHTML = defHtml || '<em class="text-muted small">Empty</em>';
+
+        // Frontends
+        const feContainer = document.getElementById('frontends-container');
+        feContainer.innerHTML = '';
+        Object.keys(appState.frontends || {}).forEach(name => {
+            const fe = appState.frontends[name];
+            const activeAcls = fe.acls ? fe.acls.length : 0;
+            const binds = cleanMarkup(fe.bind || 'No bind');
+            
+            feContainer.innerHTML += `
+                <div class="card mb-3 border-primary shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                        <div class="fw-bold text-primary"><i class="bi bi-hdd-network"></i> ${name}</div>
+                        <div>
+                            <button class="btn btn-sm btn-light py-0 border" onclick="editFrontend('${name}')"><i class="bi bi-pencil"></i> Edit</button>
+                            <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteFrontend('${name}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body py-2 px-3">
+                        <div class="row small">
+                            <div class="col-md-4"><strong>Bind:</strong> ${binds}</div>
+                            <div class="col-md-2"><strong>Mode:</strong> <span class="badge bg-secondary">${fe.mode || 'inherit'}</span></div>
+                            <div class="col-md-3"><strong>Rules:</strong> ${activeAcls} ACLs</div>
+                            <div class="col-md-3 text-truncate"><strong>Default BE:</strong> ${fe.default_backend || '<em>none</em>'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Backends
+        const beContainer = document.getElementById('backends-container');
+        beContainer.innerHTML = '';
+        Object.keys(appState.backends || {}).forEach(name => {
+            const be = appState.backends[name];
+            const servers = be.servers ? be.servers.length : 0;
+            
+            beContainer.innerHTML += `
+                <div class="card mb-3 border-success shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                        <div class="fw-bold text-success"><i class="bi bi-server"></i> ${name}</div>
+                        <div>
+                            <button class="btn btn-sm btn-light py-0 border" onclick="editBackend('${name}')"><i class="bi bi-pencil"></i> Edit</button>
+                            <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteBackend('${name}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body py-2 px-3">
+                        <div class="row small">
+                            <div class="col-md-4"><strong>Balance:</strong> <span class="badge bg-secondary">${be.balance || 'roundrobin'}</span></div>
+                            <div class="col-md-2"><strong>Mode:</strong> <span class="badge bg-secondary">${be.mode || 'inherit'}</span></div>
+                            <div class="col-md-6"><strong>Nodes:</strong> ${servers} Registered Servers</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // --- Raw Section Logic ---
+    function editRawSection(section) {
+        document.getElementById('rawModalTarget').value = section;
+        document.getElementById('rawModalTitle').innerText = "Edit " + section;
+        document.getElementById('rawModalContent').value = (appState[section] || []).join('\n');
+        rawModal.show();
+    }
+    
+    function saveRawSection() {
+        const target = document.getElementById('rawModalTarget').value;
+        const text = document.getElementById('rawModalContent').value;
+        // Split and clean empty lines
+        appState[target] = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        renderAll();
+        rawModal.hide();
+    }
+
+    // --- Frontend Logic ---
+    function addFrontend() {
+        document.getElementById('feOriginalName').value = '';
+        document.getElementById('feName').value = 'new_frontend';
+        document.getElementById('feBind').value = '*:80';
+        document.getElementById('feMode').value = 'http';
+        document.getElementById('feSsl').value = '';
+        document.getElementById('feDefaultBe').value = '';
+        document.getElementById('feAclsTable').innerHTML = '';
+        document.getElementById('feUseBackendsTable').innerHTML = '';
+        document.getElementById('feRaw').value = '';
+        document.getElementById('feModalTitle').innerText = "Add New Frontend";
+        feModal.show();
+    }
+
+    function editFrontend(name) {
+        const fe = appState.frontends[name];
+        document.getElementById('feOriginalName').value = name;
+        document.getElementById('feName').value = name;
+        document.getElementById('feBind').value = fe.bind || '';
+        document.getElementById('feMode').value = (fe.mode || '').trim() || 'http';
+        document.getElementById('feSsl').value = fe.ssl_cert || '';
+        document.getElementById('feDefaultBe').value = fe.default_backend || '';
+        
+        
+        // Populating ACL Rows
+        const aclTbody = document.getElementById('feAclsTable');
+        aclTbody.innerHTML = '';
+        (fe.acls || []).forEach(acl => {
+            addAclRow(acl.name, acl.condition);
+        });
+
+        // Populating Use Backend Rows
+        const ubTbody = document.getElementById('feUseBackendsTable');
+        ubTbody.innerHTML = '';
+        (fe.use_backends || []).forEach(ub => {
+            addUseBackendRow(ub.backend, ub.condition);
+        });
+        
+        document.getElementById('feRaw').value = (fe.raw_lines || []).join('\n');
+        
+        document.getElementById('feModalTitle').innerText = "Edit Frontend: " + name;
+        feModal.show();
+    }
+
+    function saveFrontend() {
+        const origName = document.getElementById('feOriginalName').value;
+        const newName = document.getElementById('feName').value.trim();
+        
+        if (!newName) { alert("Name required"); return; }
+        
+        // Remove old if renamed
+        if (origName && origName !== newName) {
+            delete appState.frontends[origName];
+        }
+        
+        const aclRows = document.querySelectorAll('#feAclsTable tr');
+        const aclsOut = [];
+        aclRows.forEach(row => {
+            const n = row.querySelector('.acl-name').value.trim();
+            const c = row.querySelector('.acl-cond').value.trim();
+            if (n && c) aclsOut.push({name: n, condition: c});
+        });
+        
+        const ubRows = document.querySelectorAll('#feUseBackendsTable tr');
+        const ubsOut = [];
+        ubRows.forEach(row => {
+            const be = row.querySelector('.ub-backend').value.trim();
+            const c = row.querySelector('.ub-cond').value.trim();
+            if (be) ubsOut.push({backend: be, condition: c});
+        });
+        
+        appState.frontends[newName] = {
+            bind: document.getElementById('feBind').value.trim(),
+            ssl_cert: document.getElementById('feSsl').value.trim(),
+            mode: document.getElementById('feMode').value,
+            default_backend: document.getElementById('feDefaultBe').value.trim(),
+            acls: aclsOut,
+            use_backends: ubsOut,
+            raw_lines: document.getElementById('feRaw').value.split('\n').filter(l => l.trim())
+        };
+        
+        renderAll();
+        feModal.hide();
+    }
+
+    function deleteFrontend(name) {
+        if (confirm(`Remove frontend '${name}'?`)) {
+            delete appState.frontends[name];
+            renderAll();
+        }
+    }
+
+    function addAclRow(name = "", condition = "") {
+        const tbody = document.getElementById('feAclsTable');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm font-monospace acl-name" value="${cleanMarkup(name)}" placeholder="e.g. is_api"></td>
+            <td><input type="text" class="form-control form-control-sm font-monospace acl-cond" value="${cleanMarkup(condition)}" placeholder="e.g. path_beg /api"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger py-0" title="Delete Rule" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+        `;
+        tbody.appendChild(row);
+    }
+
+    function addUseBackendRow(selectedBackend = "", condition = "") {
+        const tbody = document.getElementById('feUseBackendsTable');
+        const row = document.createElement('tr');
+        
+        let beOptions = `<option value="">-- Select or Type Target --</option>`;
+        Object.keys(appState.backends || {}).forEach(b => {
+            const selected = (selectedBackend === b) ? 'selected' : '';
+            beOptions += `<option value="${b}" ${selected}>${b}</option>`;
+        });
+        // Allow unknown backend fallback if it isn't listed
+        if (selectedBackend && !(selectedBackend in (appState.backends || {}))) {
+            beOptions += `<option value="${cleanMarkup(selectedBackend)}" selected>${cleanMarkup(selectedBackend)} (Not Found)</option>`;
+        }
+        
+        row.innerHTML = `
+            <td>
+                <!-- We combine a select and input to support standard dropdown or custom text if needed, but select is standard -->
+                <select class="form-select form-select-sm font-monospace ub-backend mb-1">
+                    ${beOptions}
+                </select>
+            </td>
+            <td><input type="text" class="form-control form-control-sm font-monospace ub-cond" value="${cleanMarkup(condition)}" placeholder="e.g. if is_api"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger py-0" title="Delete Target" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+        `;
+        tbody.appendChild(row);
+    }
+
+    // --- Backend Logic ---
+    function addBackend() {
+        document.getElementById('beOriginalName').value = '';
+        document.getElementById('beName').value = 'new_backend';
+        document.getElementById('beMode').value = '';
+        document.getElementById('beBalance').value = 'roundrobin';
+        document.getElementById('beServers').value = '';
+        document.getElementById('beRaw').value = '';
+        document.getElementById('beModalTitle').innerText = "Add New Backend";
+        beModal.show();
+    }
+
+    function editBackend(name) {
+        const be = appState.backends[name];
+        document.getElementById('beOriginalName').value = name;
+        document.getElementById('beName').value = name;
+        document.getElementById('beMode').value = (be.mode || '').trim() || '';
+        document.getElementById('beBalance').value = be.balance || 'roundrobin';
+        
+        // Reconstruct servers back into text area for easy bulk editing
+        const srvText = (be.servers || []).map(s => s.raw || `server ${s.name} ${s.address} ${s.options}`).join('\n');
+        document.getElementById('beServers').value = srvText;
+        
+        document.getElementById('beRaw').value = (be.raw_lines || []).join('\n');
+        
+        document.getElementById('beModalTitle').innerText = "Edit Backend: " + name;
+        beModal.show();
+    }
+
+    function saveBackend() {
+        const origName = document.getElementById('beOriginalName').value;
+        const newName = document.getElementById('beName').value.trim();
+        
+        if (!newName) { alert("Name required"); return; }
+        
+        if (origName && origName !== newName) {
+            delete appState.backends[origName];
+        }
+        
+        // Naive parser to pull server text area back into minimal object needed for reverse generation
+        const serverLines = document.getElementById('beServers').value.split('\n').map(l => l.trim()).filter(l => l);
+        const serversOut = [];
+        serverLines.forEach(line => {
+            // Assume format "server name ip:port args"
+            if (!line.startsWith('server ')) line = 'server ' + line;
+            serversOut.push({ raw: line }); // The new generator actually prioritizes using .raw if available
+        });
+
+        appState.backends[newName] = {
+            mode: document.getElementById('beMode').value,
+            balance: document.getElementById('beBalance').value,
+            servers: serversOut,
+            raw_lines: document.getElementById('beRaw').value.split('\n').filter(l => l.trim())
+        };
+        
+        renderAll();
+        beModal.hide();
+    }
+
+    function deleteBackend(name) {
+        if (confirm(`Remove backend '${name}'?`)) {
+            delete appState.backends[name];
+            renderAll();
+        }
+    }
+</script>
+{% endblock %}

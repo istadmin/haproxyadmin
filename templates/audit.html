@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Audit Log</h2>
+    <button class="btn btn-outline-secondary" onclick="window.location.reload();">Refresh</button>
+</div>
+
+<div class="card shadow-sm mb-5">
+    <div class="card-header bg-light d-flex justify-content-between">
+        <span>Recent 500 entries</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="monospace-log m-0 border-0" style="height: 600px; overflow-y: scroll; padding: 1rem;">
+{% for log in logs %}{{ log }}
+{% else %}
+No audit logs available.
+{% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
