@@ -38,6 +38,10 @@ SUDOERS_FILE="/etc/sudoers.d/haproxy-admin"
 cat <<EOF > ${SUDOERS_FILE}
 ${APP_OWNER} ALL=(ALL) NOPASSWD: /usr/sbin/haproxy -c -f *
 ${APP_OWNER} ALL=(ALL) NOPASSWD: /bin/systemctl reload haproxy
+${APP_OWNER} ALL=(ALL) NOPASSWD: /bin/systemctl start haproxy
+${APP_OWNER} ALL=(ALL) NOPASSWD: /bin/systemctl stop haproxy
+${APP_OWNER} ALL=(ALL) NOPASSWD: /bin/systemctl restart haproxy
+${APP_OWNER} ALL=(ALL) NOPASSWD: /bin/systemctl status haproxy
 ${APP_OWNER} ALL=(ALL) NOPASSWD: /bin/cp ${APP_DIR}/tmp/* /etc/haproxy/haproxy.cfg
 EOF
 chmod 0440 ${SUDOERS_FILE}

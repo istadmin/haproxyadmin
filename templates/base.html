@@ -32,14 +32,17 @@
                 {% if session.get('username') %}
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'commands' %}active{% endif %}" href="{{ url_for('commands') }}"><i class="bi bi-terminal"></i> Commands</a>
                     </li>
 
                         <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'visual_editor' %}active{% endif %}" href="{{ url_for('visual_editor') }}"><i class="bi bi-grid"></i> Visual Editor</a>
                         </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('editor') }}">Raw Editor</a>
+                        <a class="nav-link {% if request.endpoint == 'editor' %}active{% endif %}" href="{{ url_for('editor') }}">Raw Editor</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('history') }}">History & Rollback</a>

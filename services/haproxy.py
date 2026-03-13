@@ -50,6 +50,33 @@ class HAProxyService:
         return cls._run_command(cmd)
 
     @classmethod
+    def start_service(cls):
+        """
+        Start the HAProxy service via systemctl.
+        """
+        service_name = current_app.config.get('SYSTEMCTL_SERVICE', 'haproxy')
+        cmd = ['systemctl', 'start', service_name]
+        return cls._run_command(cmd)
+
+    @classmethod
+    def stop_service(cls):
+        """
+        Stop the HAProxy service via systemctl.
+        """
+        service_name = current_app.config.get('SYSTEMCTL_SERVICE', 'haproxy')
+        cmd = ['systemctl', 'stop', service_name]
+        return cls._run_command(cmd)
+
+    @classmethod
+    def restart_service(cls):
+        """
+        Restart the HAProxy service via systemctl.
+        """
+        service_name = current_app.config.get('SYSTEMCTL_SERVICE', 'haproxy')
+        cmd = ['systemctl', 'restart', service_name]
+        return cls._run_command(cmd)
+
+    @classmethod
     def get_status(cls):
         """
         Get the current systemctl status of the HAProxy service.

@@ -36,6 +36,39 @@ def create_app():
                                backup_count=len(backups),
                                config_path=app.config['HAPROXY_CONFIG_PATH'])
 
+    @app.route('/commands', methods=['GET'])
+    @login_required
+    def commands():
+        return render_template('commands.html')
+
+    @app.route('/commands/execute', methods=['POST'])
+    @login_required
+    def execute_command():
+        action = request.form.get('action')
+        username = get_current_user()
+        
+        success = False
+        output = "Unknown action"
+        
+        if action == 'start':
+            success, output = haproxy_service.start_service()
+        elif action == 'stop':
+            success, output = haproxy_service.stop_service()
+        elif action == 'restart':
+            success, output = haproxy_service.restart_service()
+        elif action == 'reload':
+            success, output = haproxy_service.reload_service()
+        elif action == 'status':
+            status = haproxy_service.get_status()
+            success = status['is_active']
+            output = status['raw_output']
+        elif action == 'validate':
+            success, output = haproxy_service.validate_config()
+            
+        audit.log('execute_command', username, f'{action}: {"success" if success else "failure"}', ip=request.remote_addr, output=output)
+        
+        return render_template('commands.html', action=action, success=success, output=output)
+
     @app.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':

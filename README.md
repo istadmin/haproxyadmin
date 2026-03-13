@@ -87,6 +87,10 @@ Add the following rules tailored to your application user (e.g., `myadminuser`):
 ```text
 myadminuser ALL=(ALL) NOPASSWD: /usr/sbin/haproxy -c -f *
 myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl reload haproxy
+myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl start haproxy
+myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl stop haproxy
+myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl restart haproxy
+myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl status haproxy
 myadminuser ALL=(ALL) NOPASSWD: /bin/cp /opt/haproxy-admin/tmp/* /etc/haproxy/haproxy.cfg
 ```
 
