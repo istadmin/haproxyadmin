@@ -127,3 +127,67 @@ sudo systemctl enable --now haproxy-admin
 * **Authentication:** The application checks credentials against the underlying `/etc/shadow` file via PAM. Any active Linux user on the machine with a password can log in.
 * **Privilege Drop:** The web application and web server (Gunicorn) run entirely as unprivileged users. The only commands executing as root are tightly restricted HAProxy validation/reload flags granted explicitly via `/etc/sudoers`.
 * **State:** The application uses file-system tracking in the `/data` folder for history and audits. No external database engine is required.
+
+## Application Pages & Navigation
+* **Dashboard:** The landing page showing HAProxy status, active nodes, and recent system changes.
+* **Visual Editor:** A UI-driven interface to manage HAProxy configurations (Frontends, Backends, ACLs, and Routing Rules) without writing code.
+* **Raw Editor:** An Ace-powered code editor with syntax highlighting and line numbers for direct `haproxy.cfg` manipulation.
+* **History & Rollback:** View backup configurations automatically saved before every change, with the ability to rollback with 1-click.
+* **Audit Log:** Track all configuration changes, identifying which user made them and from what IP address.
+
+## How to Use the Visual Editor
+The Visual Editor provides a structured way to modify your HAProxy settings safely:
+
+### 1. Frontends
+Manage incoming traffic listeners.
+* **Name:** The internal identifier for the frontend (e.g., `web_frontend`).
+* **Bind:** The IP and port to listen on (e.g., `*:80` or `192.168.1.10:443`).
+* **Default Backend:** The fallback backend to route traffic to if no specific rules match (e.g., `app_backend`).
+
+### 2. Backends & Servers
+Manage pools of servers handling the traffic.
+* **Name:** The internal identifier for the backend (e.g., `app_backend`).
+* **Balance Algorithm:** The load balancing strategy (e.g., `roundrobin`, `leastconn`).
+* **Servers:** Add individual servers by defining their **Name** (e.g., `web1`), **IP:Port** (e.g., `10.0.0.1:8080`), and **Options** (e.g., `check` to enable health checks).
+
+### 3. ACLs (Access Control Lists)
+Define conditions based on request properties within your Frontends or Backends.
+* **ACL Name:** The variable name for the condition (e.g., `is_blog`).
+* **Criterion:** What to inspect in the request (e.g., `path_beg` for path beginning, `hdr(host)` for host header).
+* **Value:** The value to match against (e.g., `/blog`, `example.com`).
+
+### 4. Routing Rules (Use Backend)
+Apply logic to route traffic based on your ACLs.
+* **Condition:** The logical condition referencing an ACL (e.g., `if is_blog`).
+* **Target Backend:** The backend to send matching traffic to (e.g., `blog_backend`).
+
+## Common HAProxy Scenarios & Configuration Examples
+Here are some imaginary configurations and routing scenarios you can build. For more detailed configuration options, refer to the [HAProxy 2.8 Configuration Manual](https://docs.haproxy.org/2.8/configuration.html).
+
+### Scenario 1: Path-Based Routing (Microservices)
+Route traffic to different applications based on the URL path.
+* **Frontend:** `main_proxy` bound to `*:80`.
+* **ACL 1:** Name: `is_api`, Criterion: `path_beg`, Value: `/api`
+* **ACL 2:** Name: `is_blog`, Criterion: `path_beg`, Value: `/blog`
+* **Rule 1:** Target: `api_backend`, Condition: `if is_api`
+* **Rule 2:** Target: `blog_backend`, Condition: `if is_blog`
+* **Default Backend:** `web_backend`
+
+### Scenario 2: Host-Based Routing (Virtual Hosts)
+Serve multiple domains securely from the same IP address.
+* **Frontend:** `public_https` bound to `*:443 ssl crt /etc/ssl/certs/`.
+* **ACL 1:** Name: `host_app1`, Criterion: `hdr(host) -i`, Value: `app1.example.com`
+* **ACL 2:** Name: `host_app2`, Criterion: `hdr(host) -i`, Value: `app2.example.com`
+* **Rule 1:** Target: `app1_backend`, Condition: `if host_app1`
+* **Rule 2:** Target: `app2_backend`, Condition: `if host_app2`
+
+### Scenario 3: Security & Rate Limiting (DDoS Protection)
+Protect your service by limiting requests per second from a single IP.
+* **Backend:** `ratelimit_storage` (used to store IP states).
+  * **Option:** `stick-table type ip size 100k expire 30s store http_req_rate(10s)`
+* **Frontend:** 
+  * Track requests: `http-request track-sc0 src table ratelimit_storage`
+  * **ACL:** Name: `is_abuse`, Criterion: `sc_http_req_rate(0)`, Value: `gt 50`
+  * Block abusers: `http-request deny deny_status 429` with Condition: `if is_abuse`
+
+*(Note: Advanced security rules using sticky tables and custom directives are best managed via the **Raw Editor**).*
