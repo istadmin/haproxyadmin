@@ -191,3 +191,97 @@ Protect your service by limiting requests per second from a single IP.
   * Block abusers: `http-request deny deny_status 429` with Condition: `if is_abuse`
 
 *(Note: Advanced security rules using sticky tables and custom directives are best managed via the **Raw Editor**).*
+
+## Raw Configuration Editing Examples
+While the Visual Editor covers most standard use cases, the **Raw Editor** allows you to leverage the full power of HAProxy by directly writing configuration blocks. Here are some complete, imaginary configurations you might write directly into `haproxy.cfg`.
+
+### 1. HTTP to HTTPS Redirection
+A classic scenario where all incoming HTTP traffic on port 80 is immediately redirected to the secure HTTPS port 443.
+
+```haproxy
+frontend catch_all_http
+    bind *:80
+    mode http
+    
+    # Redirect all traffic to HTTPS with a 301 Moved Permanently status
+    http-request redirect scheme https code 301 if !{ ssl_fc }
+```
+
+### 2. Blue/Green Deployment Routing
+Route traffic to different application versions based on a specific HTTP header (`X-App-Version`) or a cookie. 
+
+```haproxy
+frontend main_gateway
+    bind *:443 ssl crt /etc/ssl/certs/cert.pem
+    mode http
+
+    # Define ACLs based on a custom header
+    acl is_green_version req.hdr(X-App-Version) -i v2
+
+    # Route based on the ACL
+    use_backend app_backend_green if is_green_version
+    default_backend app_backend_blue
+
+backend app_backend_blue
+    mode http
+    balance roundrobin
+    server blue_srv1 10.0.1.10:8080 check
+    server blue_srv2 10.0.1.11:8080 check
+
+backend app_backend_green
+    mode http
+    balance roundrobin
+    server green_srv1 10.0.2.10:8080 check
+```
+
+### 3. IP Geo-blocking or Allowlisting
+Restrict access to an internal admin area to only specific corporate IP addresses, while allowing all other traffic to proceed normally.
+
+```haproxy
+frontend secure_portal
+    bind *:443 ssl crt /etc/ssl/certs/portal.pem
+    mode http
+
+    # Define a list of allowed corporate IPs 
+    # (could also be loaded from a file: -f /etc/haproxy/corp_ips.lst)
+    acl is_corporate_ip src 192.168.100.0/24 10.50.0.0/16
+    
+    # Define an ACL for the admin path
+    acl is_admin_path path_beg /admin
+
+    # Deny access to the admin path if not from a corporate IP
+    http-request deny if is_admin_path !is_corporate_ip
+
+    default_backend main_portal_nodes
+
+backend main_portal_nodes
+    mode http
+    server node1 10.0.5.100:80 check
+```
+
+### 4. WebSocket Proxying
+HAProxy natively supports WebSocket traffic. Here is a configuration routing standard web traffic to a frontend app cluster, and WebSocket traffic to a real-time messaging backend.
+
+```haproxy
+frontend realtime_proxy
+    bind *:443 ssl crt /etc/ssl/certs/app.pem
+    mode http
+
+    # Connection upgrades
+    acl is_websocket hdr(Upgrade) -i WebSocket
+    acl is_websocket_path path_beg /socket.io /ws
+
+    # Check both an upgrade header or the specific URL path
+    use_backend websocket_servers if is_websocket or is_websocket_path
+    default_backend static_web_servers
+
+backend static_web_servers
+    mode http
+    server web1 10.0.0.50:80 check
+
+backend websocket_servers
+    mode http
+    # WebSockets usually require longer timeouts and tunnel modes
+    timeout tunnel 1h
+    server ws1 10.0.0.60:3000 check
+```
