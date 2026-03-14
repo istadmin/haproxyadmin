@@ -4,13 +4,32 @@
 
 set -e
 
-APP_OWNER="istadmin"
-APP_DIR="/opt/haproxy-admin"
-SRC_DIR=$(pwd)
-DOMAIN="localhost" # Can be changed to actual domain/IP via args or post-install
+# --- Default Configuration ---
+DEFAULT_APP_DIR="/opt/haproxy-admin"
+DOMAIN="localhost"
+APP_OWNER=${SUDO_USER:-$(whoami)}
+
+# --- Help Function ---
+show_help() {
+    echo "Usage: sudo ./install.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help    Show this help message and exit"
+    echo ""
+    echo "Environment Variables (Overrides):"
+    echo "  APP_DIR       Target installation directory (Default: $DEFAULT_APP_DIR)"
+    echo ""
+    echo "This script installs HAProxy Admin with Python, Gunicorn, and Systemd."
+    exit 0
+}
+
+# --- Arg Parsing ---
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    show_help
+fi
 
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run this installer as root (using sudo)"
+  echo "Error: Please run this installer as root (using sudo)"
   exit 1
 fi
 
@@ -18,16 +37,37 @@ echo "========================================="
 echo " Installing HAProxy Admin MVP Panel..."
 echo "========================================="
 
-echo "1. Installing system dependencies (Python, Nginx)..."
-apt-get update -y
-apt-get install -y python3 python3-pip python3-venv libpam-dev haproxy nginx
+# --- Input Handling ---
+echo "App Owner detected as: $APP_OWNER"
 
-echo "2. Creating application directory..."
-mkdir -p ${APP_DIR}
+read -p "Enter installation directory [$DEFAULT_APP_DIR]: " APP_DIR
+APP_DIR=${APP_DIR:-$DEFAULT_APP_DIR}
+echo "Using Installation Directory: $APP_DIR"
+
+echo "Domain/IP set to: $DOMAIN"
+
+echo "1. Installing system dependencies (Python , Gunicorn)..."
+apt-get update -y
+apt-get install -y python3 python3-pip python3-venv libpam-dev 
+
+echo "2. Creating application directory and staging area..."
+mkdir -p ${APP_DIR}/tmp
 # Copy current source to the destination
-cp -r ${SRC_DIR}/* ${APP_DIR}/
+#cp -r $(pwd)/* ${APP_DIR}/
+
+rsync -a \
+  --exclude 'venv' \
+  --exclude '__pycache__' \
+  --exclude '*.pyc' \
+  --exclude '.git' \
+  ./ "${APP_DIR}/"
+
+
+
 # Ensure correct ownership
 chown -R ${APP_OWNER}:${APP_OWNER} ${APP_DIR}
+chmod -R 755 ${APP_DIR}
+chmod 777 ${APP_DIR}/tmp  # Allow app to write staging configs
 
 echo "3. Creating Python Virtual Environment and installing packages..."
 # Run as the app owner to ensure venv permissions are correct
@@ -57,9 +97,13 @@ After=network.target
 User=${APP_OWNER}
 Group=${APP_OWNER}
 WorkingDirectory=${APP_DIR}
-Environment="PATH=${APP_DIR}/venv/bin"
-# Using 4 workers, binding to localhost port 5000
-ExecStart=${APP_DIR}/venv/bin/gunicorn --workers 4 --bind 127.0.0.1:5000 app:app
+Environment="PATH=${APP_DIR}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Using 2 workers, binding to all interfaces on port 8080
+ExecStart=${APP_DIR}/venv/bin/gunicorn --workers 2 --bind 0.0.0.0:8080 app:create_app()
+Restart=always
+RestartSec=3
+
 
 [Install]
 WantedBy=multi-user.target
@@ -69,32 +113,22 @@ systemctl daemon-reload
 systemctl enable haproxy-admin
 systemctl restart haproxy-admin
 
-echo "6. Configuring Nginx Reverse Proxy..."
-NGINX_CONF="/etc/nginx/sites-available/haproxy-admin"
-cat <<EOF > ${NGINX_CONF}
-server {
-    listen 80;
-    server_name ${DOMAIN};
 
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
 
-# Link and enable
-ln -sf ${NGINX_CONF} /etc/nginx/sites-enabled/
-# Remove default nginx page if it exists
-rm -f /etc/nginx/sites-enabled/default
-systemctl restart nginx
-
+echo
 echo "========================================="
 echo " Installation Complete!"
 echo "========================================="
-echo "The application is now running in the background."
-echo "You can access it at: http://${DOMAIN} or your server IP."
-echo "Your application code now lives at: ${APP_DIR}"
+echo "Service: haproxy-admin"
+echo "App directory: ${APP_DIR}"
+echo "Gunicorn bind: 127.0.0.1:8080"
+echo
+echo "Recommended next step:"
+echo "Proxy this app through HAProxy on 80/443 instead of exposing 8080 publicly."
+echo
+echo "Check service:"
+echo "  systemctl status haproxy-admin"
+echo
+echo "Local test:"
+echo "You can access it at: http://${DOMAIN}:8080 or http://<server_ip>:8080"
+echo "  curl http://0.0.0.0:8080"

@@ -17,115 +17,30 @@ Built with Python Flask, Jinja2, and Bootstrap 5.
 5. **OS-Level Auth:** Zero database required. Authenticates natively against Linux OS credentials via PAM.
 6. **Audit Logs:** Full tracking of who changed what, and from which IP address.
 
-## Prerequisites
-To deploy this application, your target server must meet the following requirements:
-* **OS:** Ubuntu/Debian (or compatible Linux distribution)
-* **Web Server:** Nginx (for Reverse Proxy)
-* **Application:** HAProxy 2.8+ installed and running
-* **Python:** Python 3.8+ with `pip` and `venv`
-* **Access:** Root privileges (`sudo`) are required for the initial installation.
+## 🚀 Quick Start & Installation
+
+The easiest way to install HAProxy Admin is using the included 1-step installer script.
+
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository_url>
+    cd haproxyadmin
+    ```
+2.  **Run the installer:**
+    ```bash
+    sudo ./install.sh
+    ```
+
+### 🌐 Accessing the Application
+
+Once the installation is complete and the service is running, you can access the HAProxy Admin interface via your web browser:
+
+*   **URL:** `http://<your_server_ip>:8080`
+*   **Login:** The application uses **OS-level authentication**. Use your existing Linux system username and password to log in.
+
+For detailed information on prerequisites, manual installation steps, service management, and uninstallation, please refer to the [Installation Guide (readme_install.md)](readme_install.md).
 
 ---
-
-## 🚀 1-Click Production Installation (Recommended)
-
-The easiest and safest way to deploy this application to a production server is using the included installer script. This fully automates installing dependencies, setting up the Python virtual environment, configuring specific passwordless `sudo` rights for HAProxy commands, and generating a systemd background service.
-
-1. SSH into your HAProxy server.
-2. Clone or place this repository on the server.
-3. Switch into the directory:
-   ```bash
-   cd /path/to/haproxyadmin
-   ```
-4. Run the installer script as root:
-   ```bash
-   sudo ./install.sh
-   ```
-
-**What the installer does:**
-* Installs required apt packages (`python3`, `nginx`, `libpam-dev`, etc.).
-* Moves the app to `/opt/haproxy-admin`.
-* Installs dependencies via `pip` in an isolated virtual environment.
-* Configures `/etc/sudoers.d/haproxy-admin` so the web user can validate and reload HAProxy securely *without* needing a password.
-* Configures and starts a `systemd` service (`haproxy-admin`) running via `gunicorn`.
-* Configures Nginx to proxy traffic to the web application over port 80.
-
-You can now access the admin panel by visiting your server's IP address or Domain Name in your web browser.
-
----
-
-## Manual Installation (Development / Custom Deployment)
-
-If you prefer to set up the application manually or are running it locally for development, follow these steps:
-
-### 1. Install System Dependencies
-```bash
-sudo apt update
-sudo apt install python3 python3-pip python3-venv libpam-dev haproxy nginx
-```
-
-### 2. Application Setup
-```bash
-sudo mkdir -p /opt/haproxy-admin
-sudo chown -R myadminuser:myadminuser /opt/haproxy-admin
-cd /opt/haproxy-admin
-
-# Clone or copy application files into this directory
-
-# Setup Virtual Environment
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 3. Sudoers Configuration (Critical)
-The application runs as a standard user but requires elevated privileges to validate and reload HAProxy. Create a file `/etc/sudoers.d/haproxy-admin`:
-```bash
-sudo visudo -f /etc/sudoers.d/haproxy-admin
-```
-Add the following rules tailored to your application user (e.g., `myadminuser`):
-```text
-myadminuser ALL=(ALL) NOPASSWD: /usr/sbin/haproxy -c -f *
-myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl reload haproxy
-myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl start haproxy
-myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl stop haproxy
-myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl restart haproxy
-myadminuser ALL=(ALL) NOPASSWD: /bin/systemctl status haproxy
-myadminuser ALL=(ALL) NOPASSWD: /bin/cp /opt/haproxy-admin/tmp/* /etc/haproxy/haproxy.cfg
-```
-
-### 4. Running the Application
-**For Development:**
-```bash
-python3 app.py
-```
-
-**For Production (Gunicorn + Systemd):**
-Create the Systemd file:
-```bash
-sudo nano /etc/systemd/system/haproxy-admin.service
-```
-Paste:
-```ini
-[Unit]
-Description=HAProxy Admin Application
-After=network.target
-
-[Service]
-User=myadminuser
-Group=myadminuser
-WorkingDirectory=/opt/haproxy-admin
-Environment="PATH=/opt/haproxy-admin/venv/bin"
-ExecStart=/opt/haproxy-admin/venv/bin/gunicorn --workers 4 --bind 127.0.0.1:5000 app:app
-
-[Install]
-WantedBy=multi-user.target
-```
-Start the service:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now haproxy-admin
-```
 
 ## Security & Architecture Notes
 * **Authentication:** The application checks credentials against the underlying `/etc/shadow` file via PAM. Any active Linux user on the machine with a password can log in.
@@ -136,8 +51,42 @@ sudo systemctl enable --now haproxy-admin
 * **Dashboard:** The landing page showing HAProxy status, active nodes, and recent system changes.
 * **Visual Editor:** A UI-driven interface to manage HAProxy configurations (Frontends, Backends, ACLs, and Routing Rules) without writing code.
 * **Raw Editor:** An Ace-powered code editor with syntax highlighting and line numbers for direct `haproxy.cfg` manipulation.
+* **Operations:** Execute HAProxy administrative commands (start, stop, reload, etc.) directly from the UI and view real-time results.
 * **History & Rollback:** View backup configurations automatically saved before every change, with the ability to rollback with 1-click.
 * **Audit Log:** Track all configuration changes, identifying which user made them and from what IP address.
+
+## HAProxy Operations & Troubleshooting
+
+Managing HAProxy effectively requires knowing how to interact with the service and check for errors.
+
+### Service Commands via UI
+The **Operations** page allows you to execute common commands without SSH access:
+- **Start / Stop**: Control the HAProxy service state.
+- **Restart**: Full service restart (useful for major changes).
+- **Reload**: Gracefully reload configuration (recommended for most changes).
+- **Status**: View immediate service health and uptime.
+- **Validate**: Run a dry-run check (`haproxy -c`) to ensure the current configuration is valid.
+
+### Manual Troubleshooting (CLI)
+If you have SSH access, use these commands to investigate issues:
+
+| Task | Command |
+| :--- | :--- |
+| **Verify Config** | `sudo haproxy -c -f /etc/haproxy/haproxy.cfg` |
+| **Check Logs** | `sudo journalctl -u haproxy -f` |
+| **Check Syslog** | `sudo tail -f /var/log/haproxy.log` (if configured) |
+| **Service Status** | `sudo systemctl status haproxy` |
+| **Start Service** | `sudo systemctl start haproxy` |
+| **Stop Service** | `sudo systemctl stop haproxy` |
+| **Restart Service** | `sudo systemctl restart haproxy` |
+| **Reload Service** | `sudo systemctl reload haproxy` |
+
+**How to check for errors:**
+1.  **Validation Failed:** If the UI says "Validation Failed", check the "Operation Result" box. It will show the exact line and reason (e.g., "unknown keyword", "backend not found").
+2.  **Service Won't Start:** If HAProxy fails to start after a manual edit, run `haproxy -c` via CLI to see the error output.
+3.  **Traffic Issues:** Check `/var/log/haproxy.log` or `journalctl` for live request logs to see if traffic is being dropped or misrouted.
+
+---
 
 ## How to Use the Visual Editor
 The Visual Editor provides a structured way to modify your HAProxy settings safely:

@@ -8,7 +8,7 @@ class HAProxyService:
         try:
             # We prefix all system commands with sudo since the webapp won't run as root.
             # -n flag ensures it immediately fails instead of hanging waiting for a password prompt.
-            full_cmd = ['sudo', '-n'] + cmd_list
+            full_cmd = ['/usr/bin/sudo', '-n'] + cmd_list
             result = subprocess.run(
                 full_cmd,
                 capture_output=True,
