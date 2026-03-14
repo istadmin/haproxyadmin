@@ -65,6 +65,9 @@ def create_app():
         elif action == 'validate':
             success, output = haproxy_service.validate_config()
             
+        if success and not output:
+            output = f"Command '{action}' executed successfully."
+            
         audit.log('execute_command', username, f'{action}: {"success" if success else "failure"}', ip=request.remote_addr, output=output)
         
         return render_template('commands.html', action=action, success=success, output=output)

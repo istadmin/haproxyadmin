@@ -46,7 +46,8 @@ class HAProxyService:
         Reload the HAProxy service via systemctl.
         """
         service_name = current_app.config.get('SYSTEMCTL_SERVICE', 'haproxy')
-        cmd = ['systemctl', 'reload', service_name]
+        systemctl = current_app.config.get('SYSTEMCTL_BIN', '/bin/systemctl')
+        cmd = [systemctl, 'reload', service_name]
         return cls._run_command(cmd)
 
     @classmethod
@@ -55,7 +56,8 @@ class HAProxyService:
         Start the HAProxy service via systemctl.
         """
         service_name = current_app.config.get('SYSTEMCTL_SERVICE', 'haproxy')
-        cmd = ['systemctl', 'start', service_name]
+        systemctl = current_app.config.get('SYSTEMCTL_BIN', '/bin/systemctl')
+        cmd = [systemctl, 'start', service_name]
         return cls._run_command(cmd)
 
     @classmethod
@@ -64,7 +66,8 @@ class HAProxyService:
         Stop the HAProxy service via systemctl.
         """
         service_name = current_app.config.get('SYSTEMCTL_SERVICE', 'haproxy')
-        cmd = ['systemctl', 'stop', service_name]
+        systemctl = current_app.config.get('SYSTEMCTL_BIN', '/bin/systemctl')
+        cmd = [systemctl, 'stop', service_name]
         return cls._run_command(cmd)
 
     @classmethod
@@ -73,7 +76,8 @@ class HAProxyService:
         Restart the HAProxy service via systemctl.
         """
         service_name = current_app.config.get('SYSTEMCTL_SERVICE', 'haproxy')
-        cmd = ['systemctl', 'restart', service_name]
+        systemctl = current_app.config.get('SYSTEMCTL_BIN', '/bin/systemctl')
+        cmd = [systemctl, 'restart', service_name]
         return cls._run_command(cmd)
 
     @classmethod
@@ -82,7 +86,8 @@ class HAProxyService:
         Get the current systemctl status of the HAProxy service.
         """
         service_name = current_app.config.get('SYSTEMCTL_SERVICE', 'haproxy')
-        cmd = ['systemctl', 'status', service_name]
+        systemctl = current_app.config.get('SYSTEMCTL_BIN', '/bin/systemctl')
+        cmd = [systemctl, 'status', service_name]
         # systemctl status returns non-zero if stopped, so we just want the output
         _, output = cls._run_command(cmd)
         

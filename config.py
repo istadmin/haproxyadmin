@@ -21,6 +21,5 @@ class Config:
             os.makedirs(path, exist_ok=True)
 
     # HAProxy Service commands
-    SYSTEMCTL_SERVICE = os.environ.get('SYSTEMCTL_SERVICE', 'haproxy')
-    PAM_SERVICE = os.environ.get('PAM_SERVICE', 'login')
+    SYSTEMCTL_BIN = os.environ.get('SYSTEMCTL_BIN', '/bin/systemctl')
     HAPROXY_BIN = os.environ.get('HAPROXY_BIN', '/usr/sbin/haproxy')
